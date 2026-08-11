@@ -504,7 +504,7 @@ footer{padding:40px 0;}
       <p style="font-family:var(--font-mono);font-size:13px;color:var(--text-muted);">Enter admin passcode to continue</p>
       <input type="password" id="adminPass" placeholder="passcode" autocomplete="off">
       <div><button class="admin-btn primary" id="adminLoginBtn">Unlock</button></div>
-      <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:14px;">Default passcode: zuveriya-admin</p>
+      <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:14px;">Tip: add your passcode to the URL after admin-cms/ to skip this screen next time.</p>
     </div>
 
     <div id="adminMainView" class="admin-body" style="display:none;">
@@ -607,7 +607,7 @@ footer{padding:40px 0;}
    DATA LAYER — persisted in localStorage, secret admin CMS
    ========================================================= */
 const STORAGE_KEY = 'ztPortfolioData_v1';
-const ADMIN_PASS = 'zuveriya-admin';
+const ADMIN_PASS = 'ZTS-2027-Guntur';
 
 const defaultData = {
   contact:{
@@ -928,22 +928,36 @@ if(typingTarget && !window.matchMedia('(prefers-reduced-motion: reduce)').matche
 })();
 
 /* =========================================================
-   CONTACT FORM (client-side demo submission)
+   CONTACT FORM — opens the visitor's email client with a
+   pre-filled message addressed to the site owner's email.
+   No backend/signup required; a real email is sent once the
+   visitor's email app opens and they hit send.
    ========================================================= */
 document.getElementById('contactForm').addEventListener('submit', function(e){
   e.preventDefault();
   const status = document.getElementById('formStatus');
-  status.textContent = 'Sending…';
+  const name = document.getElementById('cf-name').value.trim();
+  const fromEmail = document.getElementById('cf-email').value.trim();
+  const msg = document.getElementById('cf-msg').value.trim();
+  const toEmail = state.contact.email;
+
+  const subject = `Portfolio contact from ${name}`;
+  const body = `${msg}\n\n— ${name} (${fromEmail})`;
+  const mailtoUrl = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  status.textContent = 'Opening your email app…';
+  window.location.href = mailtoUrl;
   setTimeout(() => {
-    status.textContent = `Thanks! Your message has been noted — I'll reply at the email you provided.`;
+    status.textContent = `Your email app should now be open with the message pre-filled — just hit send to deliver it.`;
     this.reset();
-  }, 700);
+  }, 500);
 });
 
 /* =========================================================
    SECRET ADMIN CMS ROUTING
-   Trigger 1: URL path/hash "#/admin-cms" or "/admin-cms"
-   Trigger 2: Key combo Ctrl+Shift+A
+   Trigger 1: URL hash "#/admin-cms" (prompts for passcode)
+   Trigger 2: URL hash "#/admin-cms/<passcode>" (auto-unlocks if correct)
+   Trigger 3: Key combo Ctrl+Shift+A
    ========================================================= */
 const adminOverlay = document.getElementById('adminOverlay');
 const adminLoginView = document.getElementById('adminLoginView');
@@ -962,7 +976,7 @@ function openAdmin(){
 }
 function closeAdmin(){
   adminOverlay.classList.remove('open');
-  if(location.hash.toLowerCase() === '#/admin-cms'){
+  if(location.hash.toLowerCase().startsWith('#/admin-cms')){
     history.replaceState(null, '', location.pathname + location.search);
   }
 }
@@ -984,25 +998,37 @@ document.addEventListener('keydown', (e) => {
 
 document.getElementById('adminLoginBtn').addEventListener('click', attemptLogin);
 document.getElementById('adminPass').addEventListener('keydown', (e) => { if(e.key === 'Enter') attemptLogin(); });
-function attemptLogin(){
-  const val = document.getElementById('adminPass').value;
+function attemptLogin(passVal){
+  const val = passVal !== undefined ? passVal : document.getElementById('adminPass').value;
   if(val === ADMIN_PASS){
     adminUnlocked = true;
     sessionStorage.setItem('ztAdminUnlocked','1');
     showAdminMain();
+    return true;
   } else {
     const input = document.getElementById('adminPass');
     input.style.borderColor = '#e85d5d';
     input.value = '';
     input.placeholder = 'incorrect — try again';
     setTimeout(()=>{ input.style.borderColor=''; }, 1200);
+    return false;
   }
 }
 
 function checkRouteForAdmin(){
-  const h = location.hash.toLowerCase();
+  const h = location.hash; // preserve case for passcode matching
+  const hLower = h.toLowerCase();
   const p = location.pathname.toLowerCase();
-  if(h === '#/admin-cms' || p.endsWith('/admin-cms')){
+  if(hLower.startsWith('#/admin-cms/')){
+    const providedPass = decodeURIComponent(h.slice('#/admin-cms/'.length));
+    adminOverlay.classList.add('open');
+    if(adminUnlocked || attemptLogin(providedPass)){
+      showAdminMain();
+    } else {
+      adminLoginView.style.display = 'block';
+      adminMainView.style.display = 'none';
+    }
+  } else if(hLower === '#/admin-cms' || p.endsWith('/admin-cms')){
     openAdmin();
   }
 }
