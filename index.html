@@ -928,29 +928,51 @@ if(typingTarget && !window.matchMedia('(prefers-reduced-motion: reduce)').matche
 })();
 
 /* =========================================================
-   CONTACT FORM — opens the visitor's email client with a
-   pre-filled message addressed to the site owner's email.
-   No backend/signup required; a real email is sent once the
-   visitor's email app opens and they hit send.
+   CONTACT FORM — submits directly to Formspree via fetch,
+   so the message lands in the site owner's inbox automatically
+   without opening any app on the visitor's device.
    ========================================================= */
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xnpadpvp';
 document.getElementById('contactForm').addEventListener('submit', function(e){
   e.preventDefault();
   const status = document.getElementById('formStatus');
+  const form = this;
   const name = document.getElementById('cf-name').value.trim();
   const fromEmail = document.getElementById('cf-email').value.trim();
   const msg = document.getElementById('cf-msg').value.trim();
-  const toEmail = state.contact.email;
+  const submitBtn = form.querySelector('button[type="submit"]');
 
-  const subject = `Portfolio contact from ${name}`;
-  const body = `${msg}\n\n— ${name} (${fromEmail})`;
-  const mailtoUrl = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  status.textContent = 'Sending…';
+  if(submitBtn) submitBtn.disabled = true;
 
-  status.textContent = 'Opening your email app…';
-  window.location.href = mailtoUrl;
-  setTimeout(() => {
-    status.textContent = `Your email app should now be open with the message pre-filled — just hit send to deliver it.`;
-    this.reset();
-  }, 500);
+  fetch(FORMSPREE_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Accept': 'application/json' },
+    body: (() => {
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('email', fromEmail);
+      fd.append('message', msg);
+      return fd;
+    })()
+  })
+  .then(res => {
+    if(res.ok){
+      status.textContent = `Thanks, ${name.split(' ')[0] || 'there'} — your message has been sent. I'll reply at ${fromEmail}.`;
+      form.reset();
+    } else {
+      return res.json().then(data => {
+        const errMsg = (data && data.errors && data.errors.map(er => er.message).join(', ')) || 'Something went wrong.';
+        status.textContent = `Couldn't send: ${errMsg}. Please try again or email directly.`;
+      });
+    }
+  })
+  .catch(() => {
+    status.textContent = `Network error — please try again, or email directly at ${state.contact.email}.`;
+  })
+  .finally(() => {
+    if(submitBtn) submitBtn.disabled = false;
+  });
 });
 
 /* =========================================================
