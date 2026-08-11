@@ -500,14 +500,7 @@ footer{padding:40px 0;}
       <button class="admin-close" id="adminCloseBtn">✕</button>
     </div>
 
-    <div id="adminLoginView" class="admin-login">
-      <p style="font-family:var(--font-mono);font-size:13px;color:var(--text-muted);">Enter admin passcode to continue</p>
-      <input type="password" id="adminPass" placeholder="passcode" autocomplete="off">
-      <div><button class="admin-btn primary" id="adminLoginBtn">Unlock</button></div>
-      <p style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin-top:14px;">Tip: add your passcode to the URL after admin-cms/ to skip this screen next time.</p>
-    </div>
-
-    <div id="adminMainView" class="admin-body" style="display:none;">
+    <div id="adminMainView" class="admin-body">
       <div class="admin-tabs">
         <button class="admin-tab active" data-tab="contact">Contact Card</button>
         <button class="admin-tab" data-tab="projects">Projects</button>
@@ -607,7 +600,6 @@ footer{padding:40px 0;}
    DATA LAYER — persisted in localStorage, secret admin CMS
    ========================================================= */
 const STORAGE_KEY = 'ztPortfolioData_v1';
-const ADMIN_PASS = 'ZTS-2027-Guntur';
 
 const defaultData = {
   contact:{
@@ -971,25 +963,16 @@ document.getElementById('contactForm').addEventListener('submit', function(e){
 });
 
 /* =========================================================
-   SECRET ADMIN CMS ROUTING
-   Trigger 1: URL hash "#/admin-cms" (prompts for passcode)
-   Trigger 2: URL hash "#/admin-cms/<passcode>" (auto-unlocks if correct)
-   Trigger 3: Key combo Ctrl+Shift+A
+   ADMIN CMS ROUTING (no passcode — opens directly)
+   Trigger 1: URL hash "#/admin-cms"
+   Trigger 2: Key combo Ctrl+Shift+A
    ========================================================= */
 const adminOverlay = document.getElementById('adminOverlay');
-const adminLoginView = document.getElementById('adminLoginView');
 const adminMainView = document.getElementById('adminMainView');
-let adminUnlocked = sessionStorage.getItem('ztAdminUnlocked') === '1';
 
 function openAdmin(){
   adminOverlay.classList.add('open');
-  if(adminUnlocked){
-    showAdminMain();
-  } else {
-    adminLoginView.style.display = 'block';
-    adminMainView.style.display = 'none';
-    setTimeout(()=>document.getElementById('adminPass').focus(), 50);
-  }
+  showAdminMain();
 }
 function closeAdmin(){
   adminOverlay.classList.remove('open');
@@ -998,7 +981,6 @@ function closeAdmin(){
   }
 }
 function showAdminMain(){
-  adminLoginView.style.display = 'none';
   adminMainView.style.display = 'block';
   populateAdminForms();
 }
@@ -1013,39 +995,11 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-document.getElementById('adminLoginBtn').addEventListener('click', attemptLogin);
-document.getElementById('adminPass').addEventListener('keydown', (e) => { if(e.key === 'Enter') attemptLogin(); });
-function attemptLogin(passVal){
-  const val = passVal !== undefined ? passVal : document.getElementById('adminPass').value;
-  if(val === ADMIN_PASS){
-    adminUnlocked = true;
-    sessionStorage.setItem('ztAdminUnlocked','1');
-    showAdminMain();
-    return true;
-  } else {
-    const input = document.getElementById('adminPass');
-    input.style.borderColor = '#e85d5d';
-    input.value = '';
-    input.placeholder = 'incorrect — try again';
-    setTimeout(()=>{ input.style.borderColor=''; }, 1200);
-    return false;
-  }
-}
-
 function checkRouteForAdmin(){
-  const h = location.hash; // preserve case for passcode matching
+  const h = location.hash;
   const hLower = h.toLowerCase();
   const p = location.pathname.toLowerCase();
-  if(hLower.startsWith('#/admin-cms/')){
-    const providedPass = decodeURIComponent(h.slice('#/admin-cms/'.length));
-    adminOverlay.classList.add('open');
-    if(adminUnlocked || attemptLogin(providedPass)){
-      showAdminMain();
-    } else {
-      adminLoginView.style.display = 'block';
-      adminMainView.style.display = 'none';
-    }
-  } else if(hLower === '#/admin-cms' || p.endsWith('/admin-cms')){
+  if(hLower.startsWith('#/admin-cms') || p.endsWith('/admin-cms')){
     openAdmin();
   }
 }
